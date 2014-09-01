@@ -1,32 +1,12 @@
-/*#ifndef F_CPU
-#define F_CPU           16000000UL  // 16 MHz
-#endif
-
-#include                <avr/interrupt.h>
-
-// The timers are configured with the prescaler set to 8, which means every
-// 8 clock cycles equals on tick on the counter.  This is a constant to help
-// convert timer cycles back to real time.
-#define FREQ_DIV_8      (F_CPU / 8)
-
-// Defines how many ticks a millisecond equals on our clock
-#define MILLITICK       (FREQ_DIV_8 * .001)
-
-// Helper macros for frobbing bits
-#define bitset(var,bitno) ((var) |= (1 << (bitno)))
-#define bitclr(var,bitno) ((var) &= ~(1 << (bitno)))
-#define bittst(var,bitno) (var& (1 << (bitno)))*/
-
 // set up pins
 int motor1Pin = 3;
-int motor1Val = 0;
 int motor2Pin = 9;
-int motor2Val = 0;
 int motor3Pin = 10;
-int motor3Val = 0;
+int motor1Val, motor2Val, motor3Val;
 
 int laserPin = 13;
 boolean laserOn = 0;
+int loopCount = 0;
 
 int delta = 5;      //delta limit for randomizer
 int minSpeed = 100;   // min PWM limit for motors
@@ -43,27 +23,7 @@ void printvalues() {
 }
 
 void setup() {
-  Serial.begin(9600);
-
-  // disable global interrupts
-  /*cli();
-	
-  // set timer1 interrupt at 1Hz
-  TCCR1A = 0; // set entire TCCR1A register to 0
-  TCCR1B = 0; // same for TCCR1B
-  TCNT1  = 0; //initialize counter value to 0
-  // set compare match register for 1hz increments
-  OCR1A = 15624; // = (16*10^6) / (1*1024) - 1 (must be <65536)
-  // turn on CTC mode
-  TCCR1B |= (1 << WGM12);
-  // Set CS10 and CS12 bits for 1024 prescaler
-  TCCR1B |= (1 << CS12) | (1 << CS10);  
-  // enable timer compare interrupt
-  TIMSK1 |= (1 << OCIE1A);
-  
-  // enable global interrupts
-  sei();*/
-  
+  Serial.begin(9600);  
   Serial.println("Starting up");
   
   // set up pwm pin outputs
@@ -75,16 +35,7 @@ void setup() {
   // turn on laser
   digitalWrite(laserPin, HIGH);
   
-  /*// spin up motors
-  int startSpeed = 30;
-  analogWrite(motor1Pin, startSpeed);
-  delay(1000);
-  analogWrite(motor2Pin, startSpeed);
-  delay(1000);
-  analogWrite(motor3Pin, startSpeed);
-  delay(3000);*/
-  
-  // delay motor start up a little
+  // delay motor start up for a second
   delay(1000);
   
   // spin up motors
@@ -138,38 +89,24 @@ void setup() {
 }
 
 void loop() {
-  // turn on laser
-  digitalWrite(laserPin, HIGH);
+  // save previous speed
+  int motor1Old = motor1Val;
+  int motor2Old = motor2Val;
+  int motor3Old = motor3Val;
   
   // randomly change speed
-  /*dmin = motor1Val - delta;
-  dmin = max(dmin, minSpeed);
-  dmax = motor1Val + delta;
-  dmax = min(dmax, maxSpeed);
-  motor1Val = random(dmin, dmax);*/
   motor1Val = random(minSpeed, maxSpeed);
-  
-  /*dmin = motor2Val - delta;
-  dmin = max(dmin, minSpeed);
-  dmax = motor2Val + delta;
-  dmax = min(dmax, maxSpeed);
-  motor2Val = random(dmin, dmax);*/
   motor2Val = random(minSpeed, maxSpeed);
   
-  /*dmin = motor3Val - delta;
-  dmin = max(dmin, minSpeed);
-  dmax = motor3Val + delta;
-  dmax = min(dmax, maxSpeed);
-  motor3Val = random(dmin, dmax);*/
-  
-  // motor 3 on 20% "chance"
+  // motor 3 on 50% "chance"
   int on = random(0,10);
-  if (on <= 2) {
+  if (on <= 5) {
 	  motor3Val = random(minSpeed, maxSpeed);
   } else {
 	  motor3Val = 0;
   }
   
+  /*
   // check if the 3 motor speeds are too close together
   // compare 1 and 2
   int diff = motor1Val - motor2Val;
@@ -184,10 +121,61 @@ void loop() {
 		  diff = abs(diff);
 		  if (diff >= 10) {
 			  // output to motors
-			  analogWrite(motor1Pin, motor1Val);
+			  /*analogWrite(motor1Pin, motor1Val);
 			  analogWrite(motor2Pin, motor2Val);
 			  analogWrite(motor3Pin, motor3Val);
+			  
+			  
 		  }
+	  }
+  }*/
+  
+  // sweep towards new speed
+  int delayms = 50;
+  if (motor1Old < motor1Val) { // motor 1 spin up
+	  for(int x = motor1Old; x < motor1Val; x++) {
+		analogWrite(motor1Pin, motor1Val);
+		Serial.print("1: ");
+		Serial.println(x);
+		delay(delayms);
+	  }
+  } else if (motor1Old > motor1Val) { // motor 1 spin down
+	  for(int x = motor1Old; x > motor1Val; x--) {
+		analogWrite(motor1Pin, motor1Val);
+		Serial.print("1: ");
+		Serial.println(x);
+		delay(delayms);
+	  }
+  }
+  if (motor2Old < motor2Val) { // motor 2 spin up
+	  for(int x = motor2Old; x < motor2Val; x++) {
+		analogWrite(motor2Pin, motor2Val);
+		Serial.print("2: ");
+		Serial.println(x);
+		delay(delayms);
+	  }
+  } else if (motor2Old > motor2Val) { // motor 2 spin down
+	  for(int x = motor2Old; x > motor2Val; x--) {
+		analogWrite(motor2Pin, motor2Val);
+		Serial.print("2: ");
+		Serial.println(x);
+		delay(delayms);
+	  }
+  }
+  if (motor3Old < motor3Val) { // motor 3 spin up
+	  for(int x = motor3Old; x < motor3Val; x++) {
+		analogWrite(motor3Pin, motor3Val);
+		Serial.print("3: ");
+		Serial.println(x);
+		delay(delayms);
+	  }
+  } else if (motor3Old > motor3Val) { // motor 3 spin down
+	  for(int x = motor3Old; x > motor3Val; x--) {
+		analogWrite(motor3Pin, motor3Val);
+		Serial.print("3: ");
+		Serial.println(x);
+		delay(delayms);
+		if (x <= 100) { break; } // exit loop when <100
 	  }
   }
   
@@ -195,25 +183,23 @@ void loop() {
   printvalues();
   
   // loop() delay
-  delay(5000);
+  delay(10000);
   
-  // turn laser off
-  digitalWrite(laserPin, LOW);
-  delay(1000);
+  loopCount++;
+  // Break after ~1 minute
+  if (loopCount > 6) {
+	  // turn off laser and motors for break
+	  analogWrite(motor1Pin, 0);
+      analogWrite(motor2Pin, 0);
+	  analogWrite(motor3Pin, 0);
+	  digitalWrite(laserPin, LOW);
+	  
+	  Serial.println("Breaking for 30 seconds");
+	  delay(30000); // 30 seconds
+	  Serial.println("Resuming");
+	  loopCount = 0;
+	  
+	  // turn laser back on
+	  digitalWrite(laserPin, HIGH);
+  }
 }
-
-
-// This interrupt is called every time timer1 counts up to the 16 bit value
-/*ISR(TIMER1_COMPA_vect) {
-	// turn laser off
-	if (laserOn == 1) {
-		laserOn = 0;
-		digitalWrite(laserPin, LOW);
-	} 
-	
-	// turn laser on
-	if (laserOn == 0) {
-		laserOn = 1;
-		digitalWrite(laserPin, HIGH);
-	}
-}*/
